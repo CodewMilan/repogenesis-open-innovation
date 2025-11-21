@@ -1,57 +1,30 @@
 #!/usr/bin/env python3
 """
-Algorand ASA Creation Script
-Creates an ASA on TestNet using a 24-word BIP39 mnemonic
+Algorand ASA Creation Script (Fixed)
+Creates an ASA on TestNet using standard Algorand Mnemonics
 """
 
 import algosdk
 from algosdk.v2client import algod
 from algosdk.transaction import AssetCreateTxn, wait_for_confirmation
-from algosdk import account, encoding
-from bip_utils import Bip39SeedGenerator, Bip44, Bip44Coins, Bip44Changes
-import base64
-import nacl.signing
-import nacl.encoding
+from algosdk import account, mnemonic
 
-def derive_algorand_keypair_from_bip39(mnemonic_words):
+def get_account_from_mnemonic(mnemonic_phrase):
     """
-    Derive Algorand keypair from 24-word BIP39 mnemonic
-    Uses BIP44 derivation path: m/44'/283'/0'/0/0 (283 is Algorand's coin type)
+    Derive Algorand keypair from standard Algorand mnemonic
+    Works with Pera Wallet, Defly, and standard SDK generated wallets.
     """
     try:
-        # Generate seed from mnemonic
-        seed_bytes = Bip39SeedGenerator(mnemonic_words).Generate()
+        # correct formatting (strip whitespace)
+        mnemonic_phrase = mnemonic_phrase.strip()
         
-        # Create BIP44 context for Algorand (coin type 283)
-        bip44_mst_ctx = Bip44.FromSeed(seed_bytes, Bip44Coins.ALGORAND)
+        # Convert mnemonic directly to private key
+        private_key = mnemonic.to_private_key(mnemonic_phrase)
         
-        # Derive account 0, change 0, address 0
-        bip44_acc_ctx = bip44_mst_ctx.Purpose().Coin().Account(0)
-        bip44_chg_ctx = bip44_acc_ctx.Change(Bip44Changes.CHAIN_EXT)
-        bip44_addr_ctx = bip44_chg_ctx.AddressIndex(0)
+        # Derive address from private key
+        address = account.address_from_private_key(private_key)
         
-        # Get the private key bytes (32 bytes for Ed25519)
-        private_key_bytes = bip44_addr_ctx.PrivateKey().Raw().ToBytes()
-        
-        # Algorand uses a specific private key format: 32 bytes + 32 bytes public key
-        # We need to generate the public key from the private key
-        import nacl.signing
-        import nacl.encoding
-        
-        # Create signing key from private key bytes
-        signing_key = nacl.signing.SigningKey(private_key_bytes)
-        public_key_bytes = signing_key.verify_key.encode()
-        
-        # Algorand private key format: private_key + public_key (64 bytes total)
-        full_private_key = private_key_bytes + public_key_bytes
-        
-        # Convert to base64 format that algosdk expects
-        private_key_b64 = base64.b64encode(full_private_key).decode('utf-8')
-        
-        # Generate the corresponding address
-        address_str = account.address_from_private_key(private_key_b64)
-        
-        return private_key_b64, address_str
+        return private_key, address
         
     except Exception as e:
         print(f"❌ Error deriving keypair: {e}")
@@ -61,7 +34,7 @@ def create_asa_on_testnet(private_key, address):
     """
     Create an ASA on Algorand TestNet
     """
-    # TestNet Algod client (AlgoExplorer API)
+    # TestNet Algod client (AlgoNode is free and reliable)
     algod_address = "https://testnet-api.algonode.cloud"
     algod_token = ""
     
@@ -108,18 +81,18 @@ def create_asa_on_testnet(private_key, address):
 
 def main():
     """
-    Main function to create ASA from BIP39 mnemonic
+    Main function
     """
-    # Your 24-word BIP39 mnemonic
-    mnemonic = "fresh toss cover wheat close federal behave symbol cover ribbon shine engine fiscal tuna scrub shed zoo lobster orchard april control satisfy youth sun"
+    # PASTE YOUR MNEMONIC HERE (24 or 25 words)
+    user_mnemonic = "YOUR MNEMONIC HERE"
     
     print("🚀 AuthenTIX ASA Creation Script")
     print("=" * 50)
     
-    # Step 1: Derive Algorand keypair from BIP39 mnemonic
-    print("📝 Deriving Algorand keypair from BIP39 mnemonic...")
+    # Step 1: Derive Algorand keypair
+    print("📝 Deriving Algorand keypair...")
     try:
-        private_key, address = derive_algorand_keypair_from_bip39(mnemonic)
+        private_key, address = get_account_from_mnemonic(user_mnemonic)
         print(f"✅ Derived Address: {address}")
     except Exception as e:
         print(f"❌ Failed to derive keypair: {e}")
@@ -135,7 +108,8 @@ def main():
         
         if balance < 0.1:
             print("⚠️  Warning: Low balance. You need at least 0.1 ALGO for transaction fees.")
-            print("💡 Get TestNet funds from: https://testnet.algoexplorer.io/dispenser")
+            print("💡 Get TestNet funds from: https://dispenser.testnet.aws.algodev.network/")
+            return # Stop here if no funds
     except Exception as e:
         print(f"⚠️  Could not check balance: {e}")
     
@@ -150,13 +124,7 @@ def main():
         print(f"🆔 Asset ID: {asset_id}")
         print(f"📋 Transaction ID: {txid}")
         print(f"🔗 View on AlgoExplorer: https://testnet.algoexplorer.io/asset/{asset_id}")
-        print(f"🔗 Transaction: https://testnet.algoexplorer.io/tx/{txid}")
         print("=" * 50)
-        
-        # Save asset ID to file for easy reference
-        with open("asset_id.txt", "w") as f:
-            f.write(str(asset_id))
-        print(f"💾 Asset ID saved to: asset_id.txt")
         
     except Exception as e:
         print(f"❌ Failed to create ASA: {e}")
