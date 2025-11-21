@@ -36,7 +36,7 @@ def create_asa_on_testnet(private_key, address):
     """
     # TestNet Algod client (AlgoNode is free and reliable)
     algod_address = "https://testnet-api.algonode.cloud"
-    algod_token = ""
+    algod_token = "process.env.ALGOD_MNEMONIC"
     
     # Initialize the algod client
     algod_client = algod.AlgodClient(algod_token, algod_address)
