@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from algosdk import mnemonic, account
 from algosdk.v2client import algod
 from algosdk import transaction
+from algosdk import error as algosdk_error
 
 
 # -------------------------------------------------------
@@ -75,10 +76,28 @@ def create_account_from_mnemonic(mnemonic_phrase):
     # Validate words first
     validate_mnemonic_words(mnemonic_phrase)
     
-    # Then decode
-    private_key = mnemonic.to_private_key(mnemonic_phrase)
-    address = account.address_from_private_key(private_key)
-    return AlgoAccount(private_key, address)
+    # Then decode - this will validate the checksum
+    try:
+        private_key = mnemonic.to_private_key(mnemonic_phrase)
+        address = account.address_from_private_key(private_key)
+        return AlgoAccount(private_key, address)
+    except Exception as e:
+        error_msg = str(e).lower()
+        # Check for checksum errors
+        if "checksum" in error_msg:
+            raise ValueError(
+                "Checksum validation failed. This usually means:\n"
+                "1. One or more words are incorrect (typo)\n"
+                "2. Words are in the wrong order\n"
+                "3. The mnemonic is incomplete or corrupted\n\n"
+                "Troubleshooting:\n"
+                "- Double-check each word carefully\n"
+                "- Make sure you copied all 25 words in the correct order\n"
+                "- Get a fresh copy from Pera Wallet: Settings > Security > View Passphrase\n"
+                "- The last word is a checksum - if it's wrong, the whole mnemonic is invalid"
+            )
+        else:
+            raise
 
 
 # -------------------------------------------------------
@@ -98,14 +117,20 @@ def main():
         print(f"Address: {acct1.address}")
     except ValueError as e:
         print(f"\nERROR: {e}")
-        print("\nTroubleshooting:")
-        print("1. Make sure you're using an Algorand 25-word mnemonic (not BIP39)")
-        print("2. Check for typos in the words listed above")
-        print("3. Algorand uses a specific 2048-word list")
-        print("4. Get your mnemonic from Pera Wallet: Settings > Security > View Passphrase")
         return
     except Exception as e:
         print(f"\nERROR decoding mnemonic: {e}")
+        error_msg = str(e).lower()
+        if "checksum" in error_msg:
+            print("\nThis means the mnemonic words are valid but the checksum doesn't match.")
+            print("Possible causes:")
+            print("1. One or more words have typos")
+            print("2. Words are in the wrong order")
+            print("3. The mnemonic is incomplete or corrupted")
+            print("\nSolution:")
+            print("- Get a fresh copy from Pera Wallet: Settings > Security > View Passphrase")
+            print("- Double-check each word, especially the last word (checksum)")
+            print("- Make sure you copied all 25 words in the exact order")
         return
     
     # Initialize algod client
