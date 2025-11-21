@@ -7,6 +7,7 @@ Creates an ASA on TestNet using a 24-word BIP39 mnemonic
 import algosdk
 from algosdk.v2client import algod
 from algosdk.transaction import AssetCreateTxn, wait_for_confirmation
+from algosdk import account, encoding
 from bip_utils import Bip39SeedGenerator, Bip44, Bip44Coins, Bip44Changes
 import base64
 
@@ -30,10 +31,13 @@ def derive_algorand_keypair_from_bip39(mnemonic_words):
         # Get the private key bytes (32 bytes for Ed25519)
         private_key_bytes = bip44_addr_ctx.PrivateKey().Raw().ToBytes()
         
-        # Create Algorand account from private key
-        account = algosdk.account.Account(private_key_bytes)
+        # Convert to base64 private key format that algosdk expects
+        private_key_b64 = base64.b64encode(private_key_bytes).decode('utf-8')
         
-        return account.private_key, account.address
+        # Generate the corresponding public key and address
+        address = account.address_from_private_key(private_key_b64)
+        
+        return private_key_b64, address
         
     except Exception as e:
         print(f"❌ Error deriving keypair: {e}")
