@@ -14,6 +14,7 @@ interface Event {
   radius_meters: number
   organizer_wallet: string
   created_at: string
+  image_url?: string
 }
 
 export default function EventsPage() {
@@ -227,6 +228,16 @@ export default function EventsPage() {
                   <div key={event.event_id} className="group relative h-full">
                     <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 transform rotate-1 group-hover:rotate-2 transition-transform duration-300"></div>
                     <div className="relative bg-black border border-gray-700 p-6 h-full flex flex-col justify-between hover:border-white transition-all duration-300 group-hover:shadow-xl group-hover:shadow-white/10">
+
+                      {event.image_url && (
+                        <div className="mb-4 -mx-6 -mt-6">
+                          <img
+                            src={event.image_url}
+                            alt={event.name}
+                            className="w-full h-48 object-cover"
+                          />
+                        </div>
+                      )}
 
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-4">
