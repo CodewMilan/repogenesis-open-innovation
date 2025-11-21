@@ -10,6 +10,8 @@ from algosdk.transaction import AssetCreateTxn, wait_for_confirmation
 from algosdk import account, encoding
 from bip_utils import Bip39SeedGenerator, Bip44, Bip44Coins, Bip44Changes
 import base64
+import nacl.signing
+import nacl.encoding
 
 def derive_algorand_keypair_from_bip39(mnemonic_words):
     """
@@ -31,13 +33,25 @@ def derive_algorand_keypair_from_bip39(mnemonic_words):
         # Get the private key bytes (32 bytes for Ed25519)
         private_key_bytes = bip44_addr_ctx.PrivateKey().Raw().ToBytes()
         
-        # Convert to base64 private key format that algosdk expects
-        private_key_b64 = base64.b64encode(private_key_bytes).decode('utf-8')
+        # Algorand uses a specific private key format: 32 bytes + 32 bytes public key
+        # We need to generate the public key from the private key
+        import nacl.signing
+        import nacl.encoding
         
-        # Generate the corresponding public key and address
-        address = account.address_from_private_key(private_key_b64)
+        # Create signing key from private key bytes
+        signing_key = nacl.signing.SigningKey(private_key_bytes)
+        public_key_bytes = signing_key.verify_key.encode()
         
-        return private_key_b64, address
+        # Algorand private key format: private_key + public_key (64 bytes total)
+        full_private_key = private_key_bytes + public_key_bytes
+        
+        # Convert to base64 format that algosdk expects
+        private_key_b64 = base64.b64encode(full_private_key).decode('utf-8')
+        
+        # Generate the corresponding address
+        address_str = account.address_from_private_key(private_key_b64)
+        
+        return private_key_b64, address_str
         
     except Exception as e:
         print(f"❌ Error deriving keypair: {e}")
