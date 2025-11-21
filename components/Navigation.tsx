@@ -12,7 +12,8 @@ export default function Navigation() {
     { href: '/events', label: 'Events' },
     { href: '/tickets', label: 'My Tickets' },
     { href: '/scanner', label: 'Scanner' },
-    { href: '/profile', label: 'Profile' }
+    { href: '/profile', label: 'Profile' },
+    { href: '/contact', label: 'Contact Us' }
   ]
 
   return (
@@ -36,16 +37,14 @@ export default function Navigation() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`transition-colors cursor-pointer relative group ${
-                  pathname === item.href 
-                    ? 'text-white' 
+                className={`transition-colors cursor-pointer relative group ${pathname === item.href
+                    ? 'text-white'
                     : 'text-gray-400 hover:text-white'
-                }`}
+                  }`}
               >
                 <span>{item.label}</span>
-                <div className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ${
-                  pathname === item.href ? 'w-full' : 'w-0 group-hover:w-full'
-                }`}></div>
+                <div className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ${pathname === item.href ? 'w-full' : 'w-0 group-hover:w-full'
+                  }`}></div>
               </Link>
             ))}
           </div>
