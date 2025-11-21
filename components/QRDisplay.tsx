@@ -118,45 +118,60 @@ export default function QRDisplay({ walletAddress, eventId, onError }: QRDisplay
 
   if (error) {
     return (
-      <div className="qr-error">
-        <p className="error-message">{error}</p>
-        <button onClick={generateQRCode} className="retry-btn">
-          Retry
-        </button>
+      <div className="text-center">
+        <div className="bg-red-950 border border-red-700 p-6 mb-4">
+          <div className="text-red-400 text-lg mb-4">❌ QR Generation Failed</div>
+          <p className="text-red-300 text-sm mb-4">{error}</p>
+          <button 
+            onClick={generateQRCode} 
+            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="qr-display">
-      <div className="qr-container">
+    <div className="text-center">
+      <div className="mb-6">
         {isGenerating ? (
-          <div className="qr-loading">
-            <div className="loading-spinner"></div>
-            <p>Generating QR Code...</p>
+          <div className="bg-gray-900 border border-gray-700 p-12 mb-4">
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-white text-lg">Generating QR Code...</span>
+            </div>
+            <div className="text-gray-400 text-sm">Validating location and ticket ownership...</div>
           </div>
         ) : qrDataUrl ? (
-          <img src={qrDataUrl} alt="Entry QR Code" className="qr-image" />
+          <div className="bg-white p-8 inline-block border-4 border-gray-300">
+            <img src={qrDataUrl} alt="Entry QR Code" className="w-64 h-64 mx-auto" />
+          </div>
         ) : (
-          <div className="qr-placeholder">
-            <p>QR Code will appear here</p>
+          <div className="bg-gray-900 border border-gray-700 p-12 mb-4">
+            <div className="text-gray-400 text-lg">QR Code will appear here</div>
           </div>
         )}
       </div>
       
-      <div className="qr-timer">
-        <p>Refreshes in: <span className="timer-count">{timeLeft}s</span></p>
-        <div className="timer-bar">
+      <div className="bg-gray-900 border border-gray-700 p-4 mb-6">
+        <div className="flex items-center justify-center gap-4 mb-3">
+          <span className="text-gray-400 text-sm">Refreshes in:</span>
+          <span className="text-white text-xl font-bold font-mono">{timeLeft}s</span>
+        </div>
+        <div className="w-full bg-gray-800 h-2">
           <div 
-            className="timer-progress" 
+            className="bg-white h-2 transition-all duration-1000 ease-linear" 
             style={{ width: `${(timeLeft / 20) * 100}%` }}
           ></div>
         </div>
       </div>
 
-      <div className="qr-instructions">
-        <p>Show this QR code to the scanner at the venue entrance.</p>
-        <p>The code refreshes every 20 seconds for security.</p>
+      <div className="text-gray-400 text-sm space-y-2">
+        <p>• Show this QR code to the scanner at the venue entrance</p>
+        <p>• Code refreshes every 20 seconds for security</p>
+        <p>• Must be within venue radius to generate</p>
       </div>
     </div>
   )

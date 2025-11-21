@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import WalletConnectButton from './WalletConnectButton'
 
 export default function Navigation() {
   const pathname = usePathname()
@@ -10,7 +11,8 @@ export default function Navigation() {
     { href: '/', label: 'Home' },
     { href: '/events', label: 'Events' },
     { href: '/tickets', label: 'My Tickets' },
-    { href: '/scanner', label: 'Scanner' }
+    { href: '/scanner', label: 'Scanner' },
+    { href: '/profile', label: 'Profile' }
   ]
 
   return (
@@ -54,6 +56,8 @@ export default function Navigation() {
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <span>TestNet</span>
           </div>
+
+          <WalletConnectButton />
 
           <div className="group relative cursor-pointer">
             <div className="absolute inset-0 border border-gray-600 bg-gray-900/20 transition-all duration-300 group-hover:border-white group-hover:shadow-lg group-hover:shadow-white/20"></div>

@@ -175,29 +175,43 @@ export default function ScannerView({ onScanResult }: ScannerViewProps) {
 
   if (scanResult) {
     return (
-      <div className={`scan-result ${scanResult.valid ? 'valid' : 'invalid'}`}>
-        <div className="result-content">
+      <div className="text-center">
+        <div className={`border-4 p-8 mb-6 ${scanResult.valid ? 'border-green-500 bg-green-950/20' : 'border-red-500 bg-red-950/20'}`}>
           {scanResult.valid ? (
             <>
-              <div className="success-icon">✅</div>
-              <h2>Valid Ticket</h2>
-              <div className="user-info">
-                <p><strong>Name:</strong> {scanResult.user?.name}</p>
-                <p><strong>Event:</strong> {scanResult.event?.name}</p>
-                <p><strong>Wallet:</strong> {scanResult.user?.wallet_address.slice(0, 8)}...{scanResult.user?.wallet_address.slice(-8)}</p>
+              <div className="text-6xl mb-4">✅</div>
+              <h2 className="text-2xl font-bold text-green-400 mb-4">Valid Ticket</h2>
+              <div className="space-y-2 text-left max-w-md mx-auto">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Name:</span>
+                  <span className="text-white">{scanResult.user?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Event:</span>
+                  <span className="text-white">{scanResult.event?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Wallet:</span>
+                  <span className="text-white font-mono text-sm">
+                    {scanResult.user?.wallet_address.slice(0, 8)}...{scanResult.user?.wallet_address.slice(-8)}
+                  </span>
+                </div>
               </div>
-              <p className="success-message">{scanResult.message}</p>
+              <p className="text-green-300 text-sm mt-4">{scanResult.message}</p>
             </>
           ) : (
             <>
-              <div className="error-icon">❌</div>
-              <h2>Invalid Ticket</h2>
-              <p className="error-message">{scanResult.error}</p>
+              <div className="text-6xl mb-4">❌</div>
+              <h2 className="text-2xl font-bold text-red-400 mb-4">Invalid Ticket</h2>
+              <p className="text-red-300">{scanResult.error}</p>
             </>
           )}
         </div>
         
-        <button onClick={resetScanner} className="scan-again-btn">
+        <button 
+          onClick={resetScanner} 
+          className="bg-white text-black font-bold py-3 px-6 transition-all duration-300 hover:bg-gray-100"
+        >
           Scan Another Ticket
         </button>
       </div>
@@ -205,28 +219,33 @@ export default function ScannerView({ onScanResult }: ScannerViewProps) {
   }
 
   return (
-    <div className="scanner-container">
-      <div className="scanner-header">
-        <h2>Ticket Scanner</h2>
-        <p>Point camera at QR code to verify ticket</p>
+    <div className="text-center">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-white mb-2">Ticket Scanner</h2>
+        <p className="text-gray-400">Point camera at QR code to verify ticket</p>
       </div>
 
       {error && (
-        <div className="scanner-error">
-          <p>{error}</p>
-          <button onClick={startCamera} className="retry-btn">
+        <div className="bg-red-950 border border-red-700 p-6 mb-6">
+          <div className="text-red-400 text-lg mb-4">Camera Error</div>
+          <p className="text-red-300 mb-4">{error}</p>
+          <button 
+            onClick={startCamera} 
+            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 transition-colors"
+          >
             Try Again
           </button>
         </div>
       )}
 
-      <div className="camera-container">
+      <div className="relative mb-6">
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
-          className="camera-video"
+          className="w-full max-w-md mx-auto bg-gray-900 border border-gray-700"
+          style={{ aspectRatio: '4/3' }}
         />
         <canvas
           ref={canvasRef}
@@ -234,20 +253,29 @@ export default function ScannerView({ onScanResult }: ScannerViewProps) {
         />
         
         {isScanning && (
-          <div className="scan-overlay">
-            <div className="scan-frame"></div>
-            <p className="scan-instruction">Align QR code within the frame</p>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="border-4 border-white border-dashed w-48 h-48 flex items-center justify-center">
+              <div className="text-white text-sm bg-black bg-opacity-50 px-2 py-1">
+                Align QR code here
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      <div className="scanner-controls">
+      <div className="space-y-4">
         {!isScanning && !error ? (
-          <button onClick={startCamera} className="start-scan-btn">
+          <button 
+            onClick={startCamera} 
+            className="bg-white text-black font-bold py-3 px-6 transition-all duration-300 hover:bg-gray-100"
+          >
             Start Scanning
           </button>
         ) : isScanning ? (
-          <button onClick={stopCamera} className="stop-scan-btn">
+          <button 
+            onClick={stopCamera} 
+            className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 transition-colors"
+          >
             Stop Scanning
           </button>
         ) : null}
