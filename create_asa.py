@@ -1,134 +1,104 @@
 #!/usr/bin/env python3
-"""
-Algorand ASA Creation Script (Fixed)
-Creates an ASA on TestNet using standard Algorand Mnemonics
-"""
-
 import algosdk
+from algosdk import transaction, mnemonic, account
 from algosdk.v2client import algod
-from algosdk.transaction import AssetCreateTxn, wait_for_confirmation
-from algosdk import account, mnemonic
+import json
 
+# ---------------------------------------------------------
+# Helper Class to match your snippet's syntax (acct1.address)
+# ---------------------------------------------------------
+class AlgoAccount:
+    def __init__(self, private_key, address):
+        self.private_key = private_key
+        self.address = address
+
+# ---------------------------------------------------------
+# Authentication Logic (The Fix)
+# ---------------------------------------------------------
 def get_account_from_mnemonic(mnemonic_phrase):
-    """
-    Derive Algorand keypair from standard Algorand mnemonic
-    Works with Pera Wallet, Defly, and standard SDK generated wallets.
-    """
+    """Derives keys correctly for Pera/Defly/SDK wallets"""
     try:
-        # correct formatting (strip whitespace)
         mnemonic_phrase = mnemonic_phrase.strip()
-        
-        # Convert mnemonic directly to private key
         private_key = mnemonic.to_private_key(mnemonic_phrase)
-        
-        # Derive address from private key
         address = account.address_from_private_key(private_key)
-        
-        return private_key, address
-        
+        return AlgoAccount(private_key, address)
     except Exception as e:
         print(f"❌ Error deriving keypair: {e}")
-        raise
+        exit(1)
 
-def create_asa_on_testnet(private_key, address):
-    """
-    Create an ASA on Algorand TestNet
-    """
-    # TestNet Algod client (AlgoNode is free and reliable)
-    algod_address = "https://testnet-api.algonode.cloud"
-    algod_token = "process.env.ALGOD_MNEMONIC"
-    
-    # Initialize the algod client
-    algod_client = algod.AlgodClient(algod_token, algod_address)
-    
-    try:
-        # Get network suggested parameters
-        params = algod_client.suggested_params()
-        
-        # Asset creation parameters
-        asset_create_txn = AssetCreateTxn(
-            sender=address,
-            sp=params,
-            total=1000,           # Total supply
-            default_frozen=False, # Assets are not frozen by default
-            unit_name="TIX",      # Unit name
-            asset_name="AUTHENTIX_EVENT", # Asset name
-            manager=address,      # Manager address
-            reserve=address,      # Reserve address
-            freeze=address,       # Freeze address
-            clawback=address,     # Clawback address
-            decimals=0            # Number of decimals (0 for NFT-like tickets)
-        )
-        
-        # Sign the transaction
-        signed_txn = asset_create_txn.sign(private_key)
-        
-        # Submit the transaction
-        txid = algod_client.send_transaction(signed_txn)
-        print(f"⏳ Transaction sent with ID: {txid}")
-        
-        # Wait for confirmation
-        confirmed_txn = wait_for_confirmation(algod_client, txid, 4)
-        
-        # Get the asset ID from the transaction
-        asset_id = confirmed_txn["asset-index"]
-        
-        return asset_id, txid
-        
-    except Exception as e:
-        print(f"❌ Error creating ASA: {e}")
-        raise
-
+# ---------------------------------------------------------
+# Main Script
+# ---------------------------------------------------------
 def main():
-    """
-    Main function
-    """
-    # PASTE YOUR MNEMONIC HERE (24 or 25 words)
-    user_mnemonic = "YOUR MNEMONIC HERE"
-    
-    print("🚀 AuthenTIX ASA Creation Script")
-    print("=" * 50)
-    
-    # Step 1: Derive Algorand keypair
-    print("📝 Deriving Algorand keypair...")
+    # 1. SETUP: Paste your mnemonic here
+    # -------------------------------------------
+    MNEMONIC = "fresh toss cover wheat close federal behave symbol cover ribbon shine engine fiscal tuna scrub shed zoo lobster orchard april control satisfy youth sun"
+    # -------------------------------------------
+
+    # Connect to TestNet (using free AlgoNode API)
+    algod_address = "https://testnet-api.algonode.cloud"
+    algod_client = algod.AlgodClient("", algod_address)
+
+    # Create the account object (acct1)
+    print("🔐 Authenticating...")
+    acct1 = get_account_from_mnemonic(MNEMONIC)
+    print(f"✅ Using Address: {acct1.address}")
+
+    # Check balance before proceeding
     try:
-        private_key, address = get_account_from_mnemonic(user_mnemonic)
-        print(f"✅ Derived Address: {address}")
+        acct_info = algod_client.account_info(acct1.address)
+        if acct_info.get('amount') < 100000: # 0.1 Algo
+            print("⚠️  Insufficient funds. Please fill your account at: https://dispenser.testnet.aws.algodev.network/")
+            return
     except Exception as e:
-        print(f"❌ Failed to derive keypair: {e}")
-        return
-    
-    # Step 2: Check account balance
-    print("\n💰 Checking account balance...")
+        print(f"⚠️  Could not fetch balance: {e}")
+
+    print("\n🚀 Creating Asset 'Really Useful Gift'...")
+
     try:
-        algod_client = algod.AlgodClient("", "https://testnet-api.algonode.cloud")
-        account_info = algod_client.account_info(address)
-        balance = account_info.get('amount', 0) / 1_000_000  # Convert microAlgos to Algos
-        print(f"✅ Account Balance: {balance} ALGO")
+        # 2. THE CODE SNIPPET YOU PROVIDED
+        # ---------------------------------------------------------
+        # Get network params
+        sp = algod_client.suggested_params()
+
+        # Create the transaction using AssetConfigTxn
+        # Note: strict_empty_address_check=False is often needed if using same address for everything
+        txn = transaction.AssetConfigTxn(
+            sender=acct1.address,
+            sp=sp,
+            default_frozen=False,
+            unit_name="rug",
+            asset_name="Really Useful Gift",
+            manager=acct1.address,
+            reserve=acct1.address,
+            freeze=acct1.address,
+            clawback=acct1.address,
+            url="https://path/to/my/asset/details",
+            total=1000,
+            decimals=0
+        )
+
+        # Sign with secret key of creator
+        stxn = txn.sign(acct1.private_key)
+
+        # Send the transaction to the network and retrieve the txid.
+        txid = algod_client.send_transaction(stxn)
+        print(f"Sent asset create transaction with txid: {txid}")
+
+        # Wait for the transaction to be confirmed
+        results = transaction.wait_for_confirmation(algod_client, txid, 4)
+        print(f"Result confirmed in round: {results['confirmed-round']}")
+
+        # grab the asset id for the asset we just created
+        created_asset = results["asset-index"]
+        print(f"Asset ID created: {created_asset}")
+        # ---------------------------------------------------------
         
-        if balance < 0.1:
-            print("⚠️  Warning: Low balance. You need at least 0.1 ALGO for transaction fees.")
-            print("💡 Get TestNet funds from: https://dispenser.testnet.aws.algodev.network/")
-            return # Stop here if no funds
+        print("\n🎉 Success! View on Explorer:")
+        print(f"https://testnet.algoexplorer.io/asset/{created_asset}")
+
     except Exception as e:
-        print(f"⚠️  Could not check balance: {e}")
-    
-    # Step 3: Create ASA
-    print("\n🎫 Creating ASA on TestNet...")
-    try:
-        asset_id, txid = create_asa_on_testnet(private_key, address)
-        
-        print("\n" + "=" * 50)
-        print("🎉 ASA CREATED SUCCESSFULLY!")
-        print("=" * 50)
-        print(f"🆔 Asset ID: {asset_id}")
-        print(f"📋 Transaction ID: {txid}")
-        print(f"🔗 View on AlgoExplorer: https://testnet.algoexplorer.io/asset/{asset_id}")
-        print("=" * 50)
-        
-    except Exception as e:
-        print(f"❌ Failed to create ASA: {e}")
-        return
+        print(f"\n❌ Error: {e}")
 
 if __name__ == "__main__":
     main()
