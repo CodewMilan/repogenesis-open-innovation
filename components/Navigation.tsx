@@ -19,7 +19,7 @@ export default function Navigation() {
   return (
     <nav className="border-b border-gray-800 bg-gray-950/95 backdrop-blur-sm p-4 relative z-10 sticky top-0">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 lg:gap-6">
           <div className="flex items-center gap-3">
             <div className="flex gap-2">
               <div className="w-3 h-3 bg-red-500 hover:bg-red-400 transition-colors cursor-pointer"></div>
@@ -28,16 +28,16 @@ export default function Navigation() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-white font-bold text-lg">AuthenTIX</span>
-              <span className="text-gray-400 text-sm">Algorand</span>
+              <span className="text-gray-400 text-sm hidden lg:inline">Algorand</span>
             </div>
           </div>
 
-          <div className="hidden md:flex items-center gap-8 ml-8">
+          <div className="hidden md:flex items-center gap-4 lg:gap-6">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`transition-colors cursor-pointer relative group ${pathname === item.href
+                className={`transition-colors cursor-pointer relative group whitespace-nowrap text-sm lg:text-base ${pathname === item.href
                     ? 'text-white'
                     : 'text-gray-400 hover:text-white'
                   }`}
