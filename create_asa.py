@@ -37,10 +37,45 @@ def load_env():
 
 
 # -------------------------------------------------------
+# Validate mnemonic words
+# -------------------------------------------------------
+def validate_mnemonic_words(mnemonic_phrase):
+    """Check which words are invalid in the Algorand word list"""
+    words = mnemonic_phrase.strip().split()
+    
+    if len(words) != 25:
+        raise ValueError(f"Invalid mnemonic length: {len(words)} words. Algorand requires exactly 25 words.")
+    
+    # Get the Algorand word_to_index dictionary to validate words
+    import algosdk.mnemonic as mnemonic_module
+    word_to_index = mnemonic_module.word_to_index
+    
+    invalid_words = []
+    for i, word in enumerate(words):
+        # Check if word (case-insensitive) is in the Algorand word list
+        if word.lower() not in word_to_index:
+            invalid_words.append((i + 1, word))
+    
+    if invalid_words:
+        error_msg = "\nInvalid mnemonic words found (not in Algorand word list):\n"
+        for pos, word in invalid_words:
+            error_msg += f"  Position {pos}: '{word}'\n"
+        error_msg += "\nPlease replace these words with valid Algorand mnemonic words."
+        error_msg += "\nGet your correct mnemonic from Pera Wallet: Settings > Security > View Passphrase"
+        raise ValueError(error_msg)
+    
+    return True
+
+
+# -------------------------------------------------------
 # Create account from 25-word Algorand mnemonic
 # -------------------------------------------------------
 def create_account_from_mnemonic(mnemonic_phrase):
     """Create account from Algorand 25-word mnemonic"""
+    # Validate words first
+    validate_mnemonic_words(mnemonic_phrase)
+    
+    # Then decode
     private_key = mnemonic.to_private_key(mnemonic_phrase)
     address = account.address_from_private_key(private_key)
     return AlgoAccount(private_key, address)
@@ -58,8 +93,20 @@ def main():
     
     # Create account from mnemonic
     print("\nDecoding mnemonic...")
-    acct1 = create_account_from_mnemonic(MNEMONIC)
-    print(f"Address: {acct1.address}")
+    try:
+        acct1 = create_account_from_mnemonic(MNEMONIC)
+        print(f"Address: {acct1.address}")
+    except ValueError as e:
+        print(f"\nERROR: {e}")
+        print("\nTroubleshooting:")
+        print("1. Make sure you're using an Algorand 25-word mnemonic (not BIP39)")
+        print("2. Check for typos in the words listed above")
+        print("3. Algorand uses a specific 2048-word list")
+        print("4. Get your mnemonic from Pera Wallet: Settings > Security > View Passphrase")
+        return
+    except Exception as e:
+        print(f"\nERROR decoding mnemonic: {e}")
+        return
     
     # Initialize algod client
     algod_client = algod.AlgodClient(ALGOD_TOKEN, ALGOD_URL)
@@ -73,9 +120,11 @@ def main():
         if acct_info.get('amount', 0) < 100000:  # Less than 0.1 ALGO
             print("\nWARNING: Insufficient funds for transaction fees.")
             print("Get TestNet funds from: https://testnet.algoexplorer.io/dispenser")
+            print(f"Send funds to: {acct1.address}")
             return
     except Exception as e:
         print(f"WARNING: Could not check balance: {e}")
+        print("Proceeding anyway...")
     
     print("\nCreating ASA...")
     
@@ -128,7 +177,12 @@ def main():
         print("\nAsset ID saved to asset_id.txt")
         
     except Exception as e:
-        print(f"\nERROR: {e}")
+        print(f"\nERROR creating ASA: {e}")
+        print("\nCommon issues:")
+        print("1. Insufficient balance (need at least 0.1 ALGO for fees)")
+        print("2. Network connection issues")
+        print("3. Invalid transaction parameters")
+        print("\nFor detailed error information, check the error message above.")
 
 
 if __name__ == "__main__":
