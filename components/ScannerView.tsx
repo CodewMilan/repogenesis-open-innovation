@@ -42,11 +42,27 @@ export default function ScannerView({ onScanResult }: ScannerViewProps) {
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream
-        setStream(mediaStream)
-        setIsScanning(true)
+        
+        // Wait for video to be ready before starting scan
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Video ready:', {
+            width: videoRef.current?.videoWidth,
+            height: videoRef.current?.videoHeight,
+            readyState: videoRef.current?.readyState
+          })
+          setStream(mediaStream)
+          setIsScanning(true)
+        }
+        
+        // Also handle if metadata is already loaded
+        if (videoRef.current.readyState >= 2) {
+          setStream(mediaStream)
+          setIsScanning(true)
+        }
       }
     } catch (err) {
-      setError('Failed to access camera. Please allow camera permissions.')
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      setError(`Failed to access camera: ${errorMessage}. Please allow camera permissions.`)
       console.error('Camera error:', err)
     }
   }
@@ -65,18 +81,37 @@ export default function ScannerView({ onScanResult }: ScannerViewProps) {
     
     if (!video || !canvas || !isScanning) return
 
-    const context = canvas.getContext('2d')
+    // Check if video is ready and has dimensions
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+      return
+    }
+
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      return
+    }
+
+    const context = canvas.getContext('2d', { willReadFrequently: true })
     if (!context) return
 
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
+    // Set canvas dimensions to match video
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+    }
     
+    // Draw video frame to canvas
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
     
+    // Get image data for QR scanning
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-    const code = jsQR(imageData.data, imageData.width, imageData.height)
+    
+    // Scan for QR code
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert',
+    })
     
     if (code) {
+      console.log('QR code detected:', code.data)
       handleQRCodeDetected(code.data)
     }
   }
@@ -85,9 +120,24 @@ export default function ScannerView({ onScanResult }: ScannerViewProps) {
     try {
       setIsScanning(false) // Stop scanning while processing
       
-      // Parse QR code data
-      const qrPayload = JSON.parse(qrData)
+      console.log('QR code detected, raw data:', qrData)
       
+      // Parse QR code data
+      let qrPayload
+      try {
+        qrPayload = JSON.parse(qrData)
+        console.log('Parsed QR payload:', qrPayload)
+      } catch (parseError) {
+        console.error('Failed to parse QR code data:', parseError, 'Raw data:', qrData)
+        throw new Error('Invalid QR code format - could not parse JSON')
+      }
+
+      // Validate payload structure
+      if (!qrPayload.walletAddress || !qrPayload.eventId || !qrPayload.token || !qrPayload.expires) {
+        console.error('Invalid QR payload structure:', qrPayload)
+        throw new Error('Invalid QR code format - missing required fields')
+      }
+
       // Get scanner location (optional)
       let scannerLat, scannerLng
       try {
@@ -117,6 +167,8 @@ export default function ScannerView({ onScanResult }: ScannerViewProps) {
       })
 
       const result = await response.json()
+      console.log('Verification result:', result)
+      
       setScanResult(result)
       onScanResult?.(result)
 
@@ -129,9 +181,12 @@ export default function ScannerView({ onScanResult }: ScannerViewProps) {
       }
 
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      console.error('Error processing QR code:', err)
+      
       const errorResult: ScanResult = {
         valid: false,
-        error: 'Invalid QR code format'
+        error: errorMessage
       }
       setScanResult(errorResult)
       onScanResult?.(errorResult)
@@ -151,18 +206,33 @@ export default function ScannerView({ onScanResult }: ScannerViewProps) {
 
   useEffect(() => {
     let animationFrame: number
+    let scanInterval: NodeJS.Timeout
 
-    if (isScanning) {
+    if (isScanning && videoRef.current) {
+      // Use requestAnimationFrame for smooth scanning
       const scan = () => {
-        scanQRCode()
-        animationFrame = requestAnimationFrame(scan)
+        if (isScanning) {
+          scanQRCode()
+          animationFrame = requestAnimationFrame(scan)
+        }
       }
+      
+      // Also use interval as backup (scan every 100ms)
+      scanInterval = setInterval(() => {
+        if (isScanning) {
+          scanQRCode()
+        }
+      }, 100)
+      
       animationFrame = requestAnimationFrame(scan)
     }
 
     return () => {
       if (animationFrame) {
         cancelAnimationFrame(animationFrame)
+      }
+      if (scanInterval) {
+        clearInterval(scanInterval)
       }
     }
   }, [isScanning])
@@ -244,7 +314,7 @@ export default function ScannerView({ onScanResult }: ScannerViewProps) {
           autoPlay
           playsInline
           muted
-          className="w-full max-w-md mx-auto bg-gray-900 border border-gray-700"
+          className="w-full max-w-md mx-auto bg-gray-900 border border-gray-700 rounded-lg"
           style={{ aspectRatio: '4/3' }}
         />
         <canvas
@@ -254,11 +324,17 @@ export default function ScannerView({ onScanResult }: ScannerViewProps) {
         
         {isScanning && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="border-4 border-white border-dashed w-48 h-48 flex items-center justify-center">
-              <div className="text-white text-sm bg-black bg-opacity-50 px-2 py-1">
+            <div className="border-4 border-white border-dashed w-48 h-48 flex items-center justify-center rounded-lg">
+              <div className="text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
                 Align QR code here
               </div>
             </div>
+          </div>
+        )}
+        
+        {isScanning && videoRef.current && (
+          <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded">
+            Scanning...
           </div>
         )}
       </div>

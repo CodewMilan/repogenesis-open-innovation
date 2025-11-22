@@ -280,10 +280,10 @@ export async function POST(request: NextRequest) {
     // Check if ticket has already been used
     const { data: existingCheckIn } = await supabaseAdmin
       .from('checkins')
-      .select('id')
+      .select('checkin_id')
       .eq('event_id', eventId)
-      .eq('user_address', walletAddress)
-      .single()
+      .eq('wallet_address', walletAddress)
+      .maybeSingle()
 
     if (existingCheckIn) {
       return NextResponse.json(

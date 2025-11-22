@@ -10,6 +10,7 @@ export async function POST(request: NextRequest) {
 
     // Validate QR payload structure
     if (!qrPayload || !qrPayload.walletAddress || !qrPayload.eventId || !qrPayload.token) {
+      console.log('Invalid QR payload structure:', { qrPayload })
       return NextResponse.json(
         { 
           valid: false, 
@@ -21,12 +22,31 @@ export async function POST(request: NextRequest) {
 
     const payload: QRPayload = qrPayload
 
+    // Log payload for debugging
+    const now = Date.now()
+    const timeUntilExpiry = payload.expires - now
+    console.log('Verifying QR token:', {
+      walletAddress: payload.walletAddress,
+      eventId: payload.eventId,
+      expires: payload.expires,
+      now,
+      timeUntilExpiry: `${(timeUntilExpiry / 1000).toFixed(2)}s`,
+      isExpired: now > payload.expires
+    })
+
     // Validate QR token (time window and HMAC)
     const isValidToken = validateQRToken(payload, 20000)
     if (!isValidToken) {
+      console.log('Token validation failed:', {
+        walletAddress: payload.walletAddress,
+        eventId: payload.eventId,
+        expires: payload.expires,
+        now,
+        expired: now > payload.expires
+      })
       return NextResponse.json({
         valid: false,
-        error: 'QR code has expired or is invalid'
+        error: `QR code has expired or is invalid. ${now > payload.expires ? `Expired ${((now - payload.expires) / 1000).toFixed(1)}s ago` : 'Token mismatch'}`
       })
     }
 
@@ -45,14 +65,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if ticket has already been used
-    const { data: existingCheckIn } = await supabaseAdmin
+    const { data: existingCheckIn, error: checkInQueryError } = await supabaseAdmin
       .from('checkins')
-      .select('id')
+      .select('checkin_id')
       .eq('event_id', payload.eventId)
-      .eq('user_address', payload.walletAddress)
-      .single()
+      .eq('wallet_address', payload.walletAddress)
+      .maybeSingle()
+
+    if (checkInQueryError && checkInQueryError.code !== 'PGRST116') {
+      console.error('Error checking existing check-in:', checkInQueryError)
+    }
 
     if (existingCheckIn) {
+      console.log('Ticket already used:', {
+        walletAddress: payload.walletAddress,
+        eventId: payload.eventId,
+        checkInId: existingCheckIn.checkin_id
+      })
       return NextResponse.json({
         valid: false,
         error: 'Ticket has already been used'
@@ -70,14 +99,41 @@ export async function POST(request: NextRequest) {
         })
       }
       asaId = parseInt(envAsaId)
+      if (isNaN(asaId)) {
+        return NextResponse.json({
+          valid: false,
+          error: 'Invalid EVENT_ASA_ID format'
+        })
+      }
     }
 
+    console.log('Checking ticket ownership:', {
+      walletAddress: payload.walletAddress,
+      asaId,
+      asaIdSource: event.asa_id && event.asa_id !== 0 ? 'DB' : 'ENV'
+    })
+
     // Verify current ASA ownership (anti-resell protection)
-    const ownsTicket = await checkAssetOwnership(payload.walletAddress, asaId)
+    let ownsTicket = false
+    let ownershipError: string | null = null
+    try {
+      ownsTicket = await checkAssetOwnership(payload.walletAddress, asaId)
+      console.log('Ownership check result:', {
+        walletAddress: payload.walletAddress,
+        asaId,
+        ownsTicket
+      })
+    } catch (error) {
+      ownershipError = error instanceof Error ? error.message : 'Unknown error'
+      console.error('Error checking asset ownership:', error)
+    }
+
     if (!ownsTicket) {
       return NextResponse.json({
         valid: false,
-        error: 'Ticket is no longer owned by this wallet'
+        error: ownershipError 
+          ? `Ownership check failed: ${ownershipError}`
+          : 'Ticket is no longer owned by this wallet'
       })
     }
 
@@ -85,11 +141,11 @@ export async function POST(request: NextRequest) {
     const { error: checkInError } = await supabaseAdmin
       .from('checkins')
       .insert({
-        user_address: payload.walletAddress,
+        wallet_address: payload.walletAddress,
         event_id: payload.eventId,
-        verified_by: verifiedBy || 'scanner',
         scanner_location_lat: scannerLat,
-        scanner_location_lng: scannerLng
+        scanner_location_lng: scannerLng,
+        timestamp: new Date().toISOString()
       })
 
     if (checkInError) {
