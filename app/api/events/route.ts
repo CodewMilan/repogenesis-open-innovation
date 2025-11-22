@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin, Event } from '@/lib/supabase'
 
 // GET /api/events - Fetch all events
 export async function GET() {
@@ -18,7 +18,7 @@ export async function GET() {
     }
 
     // Update events with ASA ID from environment if not set in database
-    const updatedEvents = events?.map(event => {
+    const updatedEvents = events?.map((event: Event) => {
       let asaId = event.asa_id
       if (!asaId || asaId === 0) {
         const envAsaId = process.env.EVENT_ASA_ID
