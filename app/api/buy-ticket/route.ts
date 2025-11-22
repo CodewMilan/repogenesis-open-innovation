@@ -288,7 +288,9 @@ export async function PUT(request: NextRequest) {
       const response = await algodClient.sendRawTransaction(signedTxnsBytes).do()
       
       // Get the transaction ID (for grouped transactions, this is the group ID)
-      txId = (response as any).txId || (response as any).txid
+      // The response can have txId or txid property
+      const responseObj = response as { txId?: string; txid?: string }
+      txId = responseObj.txId || responseObj.txid || null
       
       if (!txId) {
         throw new Error('No transaction ID returned from network')
