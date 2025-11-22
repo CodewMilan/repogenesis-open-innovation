@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import BookingForm from '@/components/BookingForm'
 
 export default function ContactPage() {
+    const [showSuccessToast, setShowSuccessToast] = useState(false)
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -46,6 +48,44 @@ export default function ContactPage() {
                             Need to reach us? Whether you're an event organizer, partner, or attendee, the AuthenTIX team is here to support you.
                         </p>
                     </div>
+
+                    {/* Event Booking Section */}
+                    <div className="max-w-7xl mx-auto mb-20">
+                        <div className="text-center mb-12">
+                            <h2 className="text-3xl lg:text-5xl font-bold mb-4">
+                                Select a Date & <span className="text-green-500">Time</span>
+                            </h2>
+                            <p className="text-gray-400 text-lg">
+                                Choose from our available events and tell us about your event
+                            </p>
+                        </div>
+
+                        <div className="bg-gray-950/50 border border-gray-700 p-8 rounded-lg backdrop-blur-sm shadow-2xl">
+                            <BookingForm onSuccess={() => {
+                                setShowSuccessToast(true)
+                                setTimeout(() => setShowSuccessToast(false), 5000)
+                            }} />
+                        </div>
+                    </div>
+
+                    {/* Success Toast */}
+                    {showSuccessToast && (
+                        <div className="fixed top-24 right-6 z-50 animate-slide-in">
+                            <div className="bg-green-500 text-black px-6 py-4 rounded-lg shadow-2xl shadow-green-500/50 flex items-center gap-3">
+                                <div className="text-2xl">✓</div>
+                                <div>
+                                    <div className="font-bold">Booking Request Sent!</div>
+                                    <div className="text-sm">We'll get back to you soon.</div>
+                                </div>
+                                <button
+                                    onClick={() => setShowSuccessToast(false)}
+                                    className="ml-4 text-black hover:text-gray-800 transition-colors"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Contact Details */}
                     <div className="max-w-5xl mx-auto mb-16">
