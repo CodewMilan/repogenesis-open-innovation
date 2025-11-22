@@ -9,6 +9,7 @@ import {
 } from '@/lib/algorand'
 
 const ORGANIZER_WALLET = process.env.ORGANIZER_WALLET_ADDRESS!
+const ORGANIZER_MNEMONIC = process.env.ALGOD_MNEMONIC! // Server-side only - for signing organizer transactions
 const TICKET_PRICE_MICROALGOS = 1000000 // 1 ALGO in microAlgos
 
 export async function POST(request: NextRequest) {
@@ -143,20 +144,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Convert transactions to base64 for signing
+    // Prepare transactions for signing
+    // Transaction 0: User pays organizer (user signs with Pera Wallet)
+    // Transaction 1: Organizer transfers ticket (organizer signs server-side)
+    // IMPORTANT: Pera Wallet requires the complete transaction group to be present,
+    // even though it will only sign the user's transaction
     let txnsToSign
     try {
+      // Send BOTH transactions to Pera Wallet (complete group required)
+      // But only ask Pera Wallet to sign the user's transaction
+      // The organizer's transaction will be signed server-side later
       txnsToSign = [
         {
           txn: Buffer.from(groupedTxns[0].toByte()).toString('base64'),
-          signers: [walletAddress]
+          signers: [walletAddress] // User signs this with their Pera Wallet
         },
         {
           txn: Buffer.from(groupedTxns[1].toByte()).toString('base64'),
-          signers: [ORGANIZER_WALLET]
+          signers: [] // Empty signers - Pera Wallet won't sign this, server will sign it
         }
       ]
+      
       console.log('Transactions prepared for signing')
+      console.log('Transaction 0 (user payment) - to be signed by Pera Wallet:', walletAddress)
+      console.log('Transaction 1 (organizer transfer) - will be signed server-side:', ORGANIZER_WALLET)
+      
+      return NextResponse.json({
+        success: true,
+        txnsToSign, // Complete transaction group (both transactions)
+        message: 'Transaction group created. Please sign with your wallet.',
+        eventName: event.name,
+        price: TICKET_PRICE_MICROALGOS / 1000000 // Convert to ALGO for display
+      })
     } catch (error) {
       console.error('Failed to prepare transactions for signing:', error)
       return NextResponse.json(
@@ -164,14 +183,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-
-    return NextResponse.json({
-      success: true,
-      txnsToSign,
-      message: 'Transaction group created. Please sign with your wallet.',
-      eventName: event.name,
-      price: TICKET_PRICE_MICROALGOS / 1000000 // Convert to ALGO for display
-    })
 
   } catch (error) {
     console.error('Error creating ticket purchase transaction:', error)
@@ -195,10 +206,18 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    if (!Array.isArray(signedTransactions) || signedTransactions.length === 0) {
+    if (!Array.isArray(signedTransactions) || signedTransactions.length !== 2) {
       return NextResponse.json(
-        { error: 'Invalid signed transactions format' },
+        { error: 'Invalid signed transactions format. Expected 2 transactions in the group.' },
         { status: 400 }
+      )
+    }
+
+    // Validate organizer mnemonic is available (server-side only)
+    if (!ORGANIZER_MNEMONIC) {
+      return NextResponse.json(
+        { error: 'Organizer wallet not configured. ALGOD_MNEMONIC is required server-side.' },
+        { status: 500 }
       )
     }
 
@@ -225,20 +244,47 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Submit signed transactions to Algorand network
+    // Sign organizer's transaction server-side using organizer's mnemonic
     const { algodClient } = await import('@/lib/algorand')
     const algosdk = await import('algosdk')
     
     let txId: string | null = null
 
     try {
-      // Convert base64 signed transactions to Uint8Array
-      const signedTxnsBytes = signedTransactions.map((txnBase64: string) => 
-        Buffer.from(txnBase64, 'base64')
-      )
+      // Get organizer's secret key from mnemonic (server-side only)
+      const organizerAccount = algosdk.mnemonicToSecretKey(ORGANIZER_MNEMONIC.trim())
+      
+      // Verify the organizer wallet address matches
+      const organizerAddress = String(organizerAccount.addr)
+      if (organizerAddress !== ORGANIZER_WALLET) {
+        console.error('Organizer mnemonic address mismatch:', {
+          mnemonicAddress: organizerAddress,
+          expectedAddress: ORGANIZER_WALLET
+        })
+        return NextResponse.json(
+          { error: 'Organizer wallet address mismatch. Check ORGANIZER_WALLET_ADDRESS and ALGOD_MNEMONIC.' },
+          { status: 500 }
+        )
+      }
 
-      // Submit all transactions (grouped transactions must be submitted together)
-      // Algorand accepts an array of transactions for grouped transactions
+      // signedTransactions[0] = user's signed transaction (from Pera Wallet)
+      // signedTransactions[1] = organizer's unsigned transaction (needs server-side signing)
+      const signedUserTxnBytes = Buffer.from(signedTransactions[0], 'base64')
+      const organizerTxnBytes = Buffer.from(signedTransactions[1], 'base64')
+      
+      console.log('User transaction received (signed by Pera Wallet)')
+      
+      // Decode the organizer's unsigned transaction
+      const organizerTxnDecoded = algosdk.decodeUnsignedTransaction(organizerTxnBytes)
+      
+      // Sign the organizer's transaction server-side using organizer's mnemonic
+      const signedOrganizerTxn = organizerTxnDecoded.signTxn(organizerAccount.sk)
+      console.log('Organizer transaction signed server-side')
+
+      // Combine both signed transactions (grouped transactions must be submitted together)
+      const signedTxnsBytes = [signedUserTxnBytes, signedOrganizerTxn]
+
+      // Submit all transactions to Algorand network
       const response = await algodClient.sendRawTransaction(signedTxnsBytes).do()
       
       // Get the transaction ID (for grouped transactions, this is the group ID)

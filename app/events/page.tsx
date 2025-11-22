@@ -96,22 +96,62 @@ export default function EventsPage() {
 
       console.log('Signing transactions with Pera Wallet...')
 
-      // Decode transactions for Pera Wallet
+      // Store the original organizer transaction for later use
+      const organizerTxnBase64 = data.txnsToSign[1]?.txn
+      if (!organizerTxnBase64) {
+        throw new Error('Organizer transaction not found in API response')
+      }
+
+      // Pera Wallet requires the complete transaction group
+      // Transaction 0: User signs (payment)
+      // Transaction 1: Empty signers (organizer will sign server-side)
       const txnsToSign = data.txnsToSign.map((item: { txn: string, signers: string[] }) => ({
         txn: algosdk.decodeUnsignedTransaction(Buffer.from(item.txn, 'base64')),
         signers: item.signers
       }))
 
-      // Sign transactions with Pera Wallet
+      console.log('Sending to Pera Wallet:', {
+        transactionCount: txnsToSign.length,
+        transaction0Signers: txnsToSign[0]?.signers,
+        transaction1Signers: txnsToSign[1]?.signers
+      })
+
+      // Sign with Pera Wallet - it will sign transaction 0 (user's payment)
+      // Pera Wallet may return only signed transactions or the complete group
       const signedTxns = await peraWallet.signTransaction([txnsToSign])
-      console.log('Transactions signed successfully', signedTxns)
+      console.log('Pera Wallet returned:', {
+        signedCount: signedTxns.length,
+        note: 'Pera Wallet may return 1 (signed only) or 2 (complete group) transactions'
+      })
 
-      // Convert signed transactions to base64 for submission
-      const signedTxnsBase64 = signedTxns.map((txn: Uint8Array) => 
-        Buffer.from(txn).toString('base64')
-      )
+      // Pera Wallet might return:
+      // Option 1: Only signed transactions (just transaction 0) - most common
+      // Option 2: Complete group (both transactions, one signed, one unsigned)
+      // We need to handle both cases and ensure we always send 2 transactions to server
+      
+      let signedUserTxnBase64: string
+      let organizerTxnBase64ForServer: string
 
-      // Submit signed transactions to server for processing
+      if (signedTxns.length === 1) {
+        // Pera Wallet only returned the signed transaction (transaction 0)
+        signedUserTxnBase64 = Buffer.from(signedTxns[0]).toString('base64')
+        // Use the original organizer transaction (unsigned, will be signed server-side)
+        organizerTxnBase64ForServer = organizerTxnBase64
+        console.log('Pera Wallet returned only signed transaction, using original organizer transaction')
+      } else if (signedTxns.length === 2) {
+        // Pera Wallet returned both transactions
+        signedUserTxnBase64 = Buffer.from(signedTxns[0]).toString('base64')
+        organizerTxnBase64ForServer = Buffer.from(signedTxns[1]).toString('base64')
+        console.log('Pera Wallet returned complete transaction group')
+      } else {
+        throw new Error(`Unexpected number of transactions returned by Pera Wallet: ${signedTxns.length}. Expected 1 or 2.`)
+      }
+
+      // Always send 2 transactions to server (complete group)
+      const signedTransactions = [signedUserTxnBase64, organizerTxnBase64ForServer]
+
+      // Submit signed transactions to server
+      // Server will sign the organizer's transaction and submit both
       const submitResponse = await fetch('/api/buy-ticket', {
         method: 'PUT',
         headers: {
@@ -120,7 +160,7 @@ export default function EventsPage() {
         body: JSON.stringify({
           walletAddress,
           eventId: event.event_id,
-          signedTransactions: signedTxnsBase64
+          signedTransactions: signedTransactions // Both transactions (one signed, one unsigned)
         })
       })
 
