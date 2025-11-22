@@ -52,9 +52,9 @@ export async function getAccountAssets(walletAddress: string): Promise<AlgorandA
     if (assets.length > 0) {
       const firstAsset = assets[0]
       const loggableAsset = {
-        assetId: firstAsset.assetId?.toString() || firstAsset['asset-id']?.toString(),
+        assetId: firstAsset.assetId?.toString(),
         amount: firstAsset.amount?.toString(),
-        'is-frozen': firstAsset['is-frozen'] || firstAsset.isFrozen,
+        isFrozen: firstAsset.isFrozen,
         deleted: firstAsset.deleted
       }
       console.log('Raw asset structure from indexer:', loggableAsset)

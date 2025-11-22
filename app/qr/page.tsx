@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { peraWallet } from '@/components/WalletConnectButton'
 import QRDisplay from '@/components/QRDisplay'
 
-export default function QRPage() {
+function QRPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const eventId = searchParams.get('eventId')
@@ -207,5 +207,33 @@ export default function QRPage() {
         </div>
       </section>
     </div>
+  )
+}
+
+export default function QRPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black text-white font-mono overflow-hidden relative">
+        <div className="fixed inset-0 opacity-10 pointer-events-none">
+          <div className="grid grid-cols-25 gap-1 h-full">
+            {Array.from({ length: 100 }, (_, i) => (
+              <div key={i} className="text-gray-500 text-xs animate-pulse">🎫</div>
+            ))}
+          </div>
+        </div>
+        <section className="relative px-6 py-20 lg:px-12">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="bg-gray-950 border border-gray-700 shadow-2xl backdrop-blur-sm p-8">
+              <div className="flex items-center justify-center gap-4">
+                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-white text-lg">Loading...</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    }>
+      <QRPageContent />
+    </Suspense>
   )
 }

@@ -3,8 +3,11 @@
 import { useState, useEffect } from 'react'
 import { PeraWalletConnect } from '@perawallet/connect'
 
+// Algorand chain IDs: MainNet=416001, TestNet=416002, BetaNet=416003
+const chainIdValue = parseInt(process.env.NEXT_PUBLIC_ALGORAND_CHAIN_ID || '416002') as 416001 | 416002 | 416003
+
 const peraWallet = new PeraWalletConnect({
-  chainId: parseInt(process.env.NEXT_PUBLIC_ALGORAND_CHAIN_ID || '416002')
+  chainId: chainIdValue
 })
 
 interface WalletConnectButtonProps {
