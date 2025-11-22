@@ -250,12 +250,11 @@ export default function TicketsPage() {
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-lg font-bold text-white group-hover:text-gray-100">{ticket.event.name}</h3>
-                          <span className={`text-xs font-mono px-2 py-1 ${ticket.used
-                            ? 'bg-red-900 text-red-400 border border-red-700'
-                            : 'bg-green-900 text-green-400 border border-green-700'
-                            }`}>
-                            {ticket.used ? 'USED' : 'ACTIVE'}
-                          </span>
+                          {!ticket.used && (
+                            <span className="text-xs font-mono px-2 py-1 bg-green-900 text-green-400 border border-green-700">
+                              ACTIVE
+                            </span>
+                          )}
                         </div>
 
                         <p className="text-gray-400 mb-4 group-hover:text-gray-300 text-sm leading-relaxed">

@@ -291,13 +291,11 @@ export default function ProfilePage() {
                         >
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="text-white font-bold">{ticket.event.name}</h4>
-                            <span className={`text-xs font-mono px-2 py-1 ${
-                              ticket.used 
-                                ? 'bg-red-900 text-red-400 border border-red-700' 
-                                : 'bg-green-900 text-green-400 border border-green-700'
-                            }`}>
-                              {ticket.used ? 'USED' : 'ACTIVE'}
-                            </span>
+                            {!ticket.used && (
+                              <span className="text-xs font-mono px-2 py-1 bg-green-900 text-green-400 border border-green-700">
+                                ACTIVE
+                              </span>
+                            )}
                           </div>
                           
                           <p className="text-gray-400 text-sm mb-3">{ticket.event.description}</p>

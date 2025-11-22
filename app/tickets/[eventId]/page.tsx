@@ -197,12 +197,12 @@ export default function TicketDetailPage() {
                 <div className="text-gray-500 mb-1">Quantity</div>
                 <div className="text-white">{ticket.amount}</div>
               </div>
-              <div className="bg-gray-900 border border-gray-700 p-3">
-                <div className="text-gray-500 mb-1">Status</div>
-                <div className={ticket.used ? 'text-red-400' : 'text-green-400'}>
-                  {ticket.used ? 'USED' : 'ACTIVE'}
+              {!ticket.used && (
+                <div className="bg-gray-900 border border-gray-700 p-3">
+                  <div className="text-gray-500 mb-1">Status</div>
+                  <div className="text-green-400">ACTIVE</div>
                 </div>
-              </div>
+              )}
               <div className="bg-gray-900 border border-gray-700 p-3">
                 <div className="text-gray-500 mb-1">Venue Radius</div>
                 <div className="text-white">{ticket.event.radius_meters}m</div>
