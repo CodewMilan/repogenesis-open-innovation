@@ -51,8 +51,8 @@ export async function GET(request: NextRequest) {
           .from('checkins')
           .select('timestamp')
           .eq('event_id', ticket.event_id)
-          .eq('user_address', walletAddress)
-          .single()
+          .eq('wallet_address', walletAddress)
+          .maybeSingle()
 
         if (eventData) {
           tickets.push({
